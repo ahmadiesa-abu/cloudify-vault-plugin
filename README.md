@@ -10,7 +10,25 @@ This plugin provides the following functionality:
 
 ## Usage
 
-See [writing your own plugin](https://docs.cloudify.co/latest/developer/writing_plugins/)
+```yaml
+
+dsl_definitions:
+
+  vault_config: &vault_config
+    url: 'http://127.0.0.1:8200'
+    token: 'superdupertoken'
+
+
+node_templates:
+  my_secret:
+    type: cloudify.nodes.vault.secret
+    properties:
+      client_config: *vault_config
+      resource_config:
+        secret_key: {get_input: secret_key}
+        secret_value: {get_input: secret_value}
+
+```
 
 ## Tests
 
