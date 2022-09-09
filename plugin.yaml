@@ -1,0 +1,70 @@
+plugins:
+  vault:
+    executor: central_deployment_agent
+    package_name: 'cloudify-vault-plugin'
+    package_version: '1.0'
+
+dsl_definitions:
+
+  client_config: &client_config
+    client_config:
+      type: cloudify.types.vault.ClientConfig
+      description: Your Vault client configuration.
+      required: false
+
+data_types:
+
+  cloudify.types.vault.ClientConfig:
+    properties:
+      url:
+        description: vault url.
+        type: string
+        default: ''
+      token:
+        description: user token to authenticate to vault.
+        type: string
+        default: ''
+
+  cloudify.types.vault.Secret:
+    properties:
+      secret_key:
+        description: Secret Key [Path]
+        type: string
+        default: ''
+      secret_value:
+        description: Secret Value
+        default: {}
+      create_secret:
+        description: >
+          a condition wheather to store the secret value in cloudify secrets
+          in case of use_external_resource is used to fetch the secret from vault
+        type: boolean
+        default: false
+
+
+node_types:
+
+  cloudify.nodes.vault.secret:
+    derived_from: cloudify.nodes.Root
+    properties:
+      <<: *client_config
+      use_external_resource:
+        type: boolean
+        description: if you want to reference existing resource given the key
+        required: false
+      create_if_missing:
+        type: boolean
+        description: if using use_external_resource and not found create it
+        required: false
+      resource_config:
+        type: cloudify.types.vault.Secret
+        description: Vault Secret type
+        required: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: vault.cloudify_vault.tasks.create_secret
+        update:
+          implementation: vault.cloudify_vault.tasks.update_secret
+        delete:
+          implementation: vault.cloudify_vault.tasks.delete_secret

@@ -1,0 +1,36 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - https://cloudify.co/spec/cloudify/6.2.0/types.yaml
+  - plugin:cloudify-vault-plugin
+
+inputs:
+  vault_url:
+    type: string
+    default: {get_secret: vault_url}
+  vault_token:
+    type: string
+    default: {get_secret: vault_token}
+
+  secret_key:
+    type: string
+
+  secret_value:
+    type: dict
+
+dsl_definitions:
+
+  vault_config: &vault_config
+    url: { get_input: vault_url }
+    token: {get_input: vault_token}
+
+
+node_templates:
+
+  my_secret:
+    type: cloudify.nodes.vault.secret
+    properties:
+      client_config: *vault_config
+      resource_config:
+        secret_key: {get_input: secret_key}
+        secret_value: {get_input: secret_value}
