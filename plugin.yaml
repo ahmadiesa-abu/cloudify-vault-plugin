@@ -2,7 +2,7 @@ plugins:
   vault:
     executor: central_deployment_agent
     package_name: 'cloudify-vault-plugin'
-    package_version: '1.0'
+    package_version: '1.0.1'
 
 dsl_definitions:
 
@@ -17,11 +17,11 @@ data_types:
   cloudify.types.vault.ClientConfig:
     properties:
       url:
-        description: vault url.
+        description: Vault URL.
         type: string
         default: ''
       token:
-        description: user token to authenticate to vault.
+        description: User Token used to authenticate to Vault.
         type: string
         default: ''
 
@@ -36,10 +36,24 @@ data_types:
         default: {}
       create_secret:
         description: >
-          a condition wheather to store the secret value in cloudify secrets
-          in case of use_external_resource is used to fetch the secret from vault
+          A condition whether to store the secret value in Cloudify
+          secrets in case of use_external_resource is used to fetch the
+          secret from Vault.
         type: boolean
         default: false
+      secret_name:
+        description: >
+          Name of the secret created in Cloudify secrets. Used when
+          create_secret flag is enabled.
+        type: string
+        default: ''
+      mount_point:
+        description: >
+          A mount_point parameter that can be used to address the KvV1
+          secret engine under a custom mount path. The full path of the
+          secret inside Vault.
+        type: string
+        default: 'secret'
 
 
 node_types:
@@ -50,11 +64,14 @@ node_types:
       <<: *client_config
       use_external_resource:
         type: boolean
-        description: if you want to reference existing resource given the key
+        description: >
+          Reference existing resource given the key. Get the value of an
+          existing secret.
         required: false
       create_if_missing:
         type: boolean
-        description: if using use_external_resource and not found create it
+        description: >
+          If using use_external_resource and secret not found, create it.
         required: false
       resource_config:
         type: cloudify.types.vault.Secret
@@ -68,3 +85,33 @@ node_types:
           implementation: vault.cloudify_vault.tasks.update_secret
         delete:
           implementation: vault.cloudify_vault.tasks.delete_secret
+
+  cloudify.nodes.vault.bunch_secrets:
+    derived_from: cloudify.nodes.Root
+    properties:
+      <<: *client_config
+      use_external_resource:
+        type: boolean
+        description: >
+          Reference existing resources given the keys. Get values of
+          existing secrets.
+        required: false
+      create_if_missing:
+        type: boolean
+        description: >
+          If using use_external_resource and secrets not found, create
+          them.
+        required: false
+      resource_config:
+        type: list
+        description: List of Vault Secret type objects
+        required: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: vault.cloudify_vault.tasks.bunch_create_secrets
+        # update:
+        #   implementation: vault.cloudify_vault.tasks.bunch_update_secrets
+        delete:
+          implementation: vault.cloudify_vault.tasks.bunch_delete_secrets
+

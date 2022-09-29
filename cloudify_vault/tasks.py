@@ -14,11 +14,9 @@
 # limitations under the License.
 import json
 import hvac
-
-from functools import wraps
-
 from cloudify.decorators import operation
 from cloudify.manager import get_rest_client
+from functools import wraps
 
 
 def with_vault(func):
@@ -36,50 +34,67 @@ def with_vault(func):
 @with_vault
 def create_secret(ctx, vault_client, **kwargs):
     secret_key = \
-        ctx.node.properties.get('resource_config', {}).get('secret_key', "")
+        ctx.node.properties.get('resource_config', {}).get('secret_key', '')
     secret_value = \
-        ctx.node.properties.get('resource_config', {}).get('secret_value', "")
+        ctx.node.properties.get('resource_config', {}).get('secret_value', '')
     create_secret = \
-        ctx.node.properties.get('resource_config', {}).get('create_secret', "")
+        ctx.node.properties.get('resource_config', {}).get('create_secret', '')
+    secret_name = \
+        ctx.node.properties.get('resource_config', {}).get('secret_name', secret_key)
+    mount_point = \
+        ctx.node.properties.get('resource_config', {}).get('mount_point', 'secret')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
     if use_external_resource:
-        read_secret_result = vault_client.secrets.kv.v2.read_secret(
+        read_secret_result = vault_client.secrets.kv.v1.read_secret(
             path=secret_key,
+            mount_point=mount_point,
         )
-        ctx.instance.runtime_properties[secret_key] = \
-            read_secret_result['data']['data']
-
         if create_secret:
             rest_client = get_rest_client()
-            secret_to_store = json.dumps(read_secret_result['data']['data'])
-            rest_client.secrets.create(secret_key, secret_to_store,
+            secret_to_store = json.dumps(read_secret_result['data'])
+            secret_name = secret_name or secret_key
+            rest_client.secrets.create(secret_name,
+                                       secret_to_store,
                                        update_if_exists=True)
+            ctx.instance.runtime_properties[secret_key] = \
+                {'secret_name': secret_name}
+
     else:
-        create_result = vault_client.secrets.kv.v2.create_or_update_secret(
+        create_result = vault_client.secrets.kv.v1.create_or_update_secret(
             path=secret_key,
             secret=secret_value,
+            mount_point=mount_point,
         )
-        ctx.instance.runtime_properties['create_result'] = create_result
+        ctx.instance.runtime_properties['create_result_status_code'] = create_result.status_code
+        if create_secret:
+            rest_client = get_rest_client()
+            secret_name = secret_name or secret_key
+            rest_client.secrets.create(secret_name,
+                                       secret_value,
+                                       update_if_exists=True)
 
 
 @operation
 @with_vault
 def update_secret(ctx, vault_client, **kwargs):
     secret_key = \
-        ctx.node.properties.get('resource_config', {}).get('secret_key', "")
+        ctx.node.properties.get('resource_config', {}).get('secret_key', '')
     secret_value = \
         ctx.node.properties.get('resource_config', {}).get('secret_value', {})
+    mount_point = \
+        ctx.node.properties.get('resource_config', {}).get('mount_point', 'secret')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
     if use_external_resource:
-        ctx.logger.info('not updating external resource')
+        ctx.logger.info('Not updating external resource')
     else:
-        update_result = vault_client.secrets.kv.v2.create_or_update_secret(
+        update_result = vault_client.secrets.kv.v1.create_or_update_secret(
             path=secret_key,
             secret=secret_value,
+            mount_point=mount_point,
         )
         ctx.instance.runtime_properties['create_result'] = update_result
 
@@ -88,18 +103,94 @@ def update_secret(ctx, vault_client, **kwargs):
 @with_vault
 def delete_secret(ctx, vault_client, **kwargs):
     secret_key = \
-        ctx.node.properties.get('resource_config', {}).get('secret_key', "")
+        ctx.node.properties.get('resource_config', {}).get('secret_key', '')
+    create_secret = \
+        ctx.node.properties.get('resource_config', {}).get('create_secret', '')
+    secret_name = \
+        ctx.node.properties.get('resource_config', {}).get('secret_name', secret_key)
+    mount_point = \
+        ctx.node.properties.get('resource_config', {}).get('mount_point', 'secret')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
-    create_secret = \
-        ctx.node.properties.get('resource_config', {}).get('create_secret', "")
 
     if use_external_resource:
-        ctx.logger.info('not deleting external resource')
+        ctx.logger.info('Not deleting external resource')
         if create_secret:
             rest_client = get_rest_client()
-            rest_client.secrets.delete(secret_key)
+            secret_name = secret_name or secret_key
+            rest_client.secrets.delete(secret_name)
     else:
-        vault_client.secrets.kv.v2.delete_metadata_and_all_versions(
+        vault_client.secrets.kv.v1.delete_secret(
             path=secret_key,
+            mount_point=mount_point,
         )
+
+
+@operation
+@with_vault
+def bunch_create_secrets(ctx, vault_client, **kwargs):
+    secret_list = \
+        ctx.node.properties.get('resource_config', {})
+    use_external_resource = \
+        ctx.node.properties.get('use_external_resource', False)
+    for secret in secret_list:
+        secret_key = secret.get('secret_key', '')
+        secret_value = secret.get('secret_value', '')
+        create_secret = secret.get('create_secret', '')
+        secret_name = secret.get('secret_name', secret_key)
+        mount_point = secret.get('mount_point', 'secret')
+
+        if use_external_resource:
+            read_secret_result = vault_client.secrets.kv.v1.read_secret(
+                path=secret_key,
+                mount_point=mount_point,
+            )
+            if create_secret:
+                rest_client = get_rest_client()
+                secret_to_store = json.dumps(read_secret_result['data'])
+                secret_name = secret_name or secret_key
+                rest_client.secrets.create(secret_name,
+                                        secret_to_store,
+                                        update_if_exists=True)
+                ctx.instance.runtime_properties[secret_key] = \
+                    {'secret_name': secret_name}
+
+        else:
+            create_result = vault_client.secrets.kv.v1.create_or_update_secret(
+                path=secret_key,
+                secret=secret_value,
+                mount_point=mount_point,
+            )
+            ctx.instance.runtime_properties['create_result_status_code'] = create_result.status_code
+            if create_secret:
+                rest_client = get_rest_client()
+                secret_name = secret_name or secret_key
+                rest_client.secrets.create(secret_name,
+                                        secret_value,
+                                        update_if_exists=True)
+
+
+@operation
+@with_vault
+def bunch_delete_secrets(ctx, vault_client, **kwargs):
+    secret_list = \
+        ctx.node.properties.get('resource_config', {})
+    use_external_resource = \
+        ctx.node.properties.get('use_external_resource', False)
+    if use_external_resource:
+        ctx.logger.info('Not deleting external resource')
+    for secret in secret_list:
+        secret_key = secret.get('secret_key', '')
+        create_secret = secret.get('create_secret', '')
+        secret_name = secret.get('secret_name', secret_key)
+        mount_point = secret.get('mount_point', 'secret')
+
+        if create_secret:
+            rest_client = get_rest_client()
+            secret_name = secret_name or secret_key
+            rest_client.secrets.delete(secret_name)
+        if not use_external_resource:
+            vault_client.secrets.kv.v1.delete_secret(
+                path=secret_key,
+                mount_point=mount_point,
+            )

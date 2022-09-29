@@ -45,4 +45,7 @@ nosetests.xml
 .idea/
 
 # Cloudify Wagons
-.wgn
+*.wgn
+
+# Zip file
+vault_plugin.zip
