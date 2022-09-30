@@ -47,7 +47,8 @@ def _create_secret(ctx, vault_client, secret_key, secret_value, create_secret,
             secret=secret_value,
             mount_point=mount_point,
         )
-        ctx.instance.runtime_properties['create_result_status_code'] = create_result.status_code
+        ctx.instance.runtime_properties['create_result_status_code'] = \
+            create_result.status_code
 
     if create_secret:
         rest_client = get_rest_client()
@@ -103,15 +104,20 @@ def _delete_secret(ctx, vault_client, secret_key, create_secret,
 @with_vault
 def create_secret(ctx, vault_client, **kwargs):
     secret_key = \
-        ctx.node.properties.get('resource_config', {}).get('secret_key', '')
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_key', '')
     secret_value = \
-        ctx.node.properties.get('resource_config', {}).get('secret_value', '')
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_value', '')
     create_secret = \
-        ctx.node.properties.get('resource_config', {}).get('create_secret', False)
+        ctx.node.properties.get('resource_config', {}).get(
+            'create_secret', False)
     secret_name = \
-        ctx.node.properties.get('resource_config', {}).get('secret_name', secret_key)
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_name', secret_key)
     mount_point = \
-        ctx.node.properties.get('resource_config', {}).get('mount_point', 'secret')
+        ctx.node.properties.get('resource_config', {}).get(
+            'mount_point', 'secret')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
@@ -129,15 +135,20 @@ def create_secret(ctx, vault_client, **kwargs):
 @with_vault
 def update_secret(ctx, vault_client, **kwargs):
     secret_key = \
-        ctx.node.properties.get('resource_config', {}).get('secret_key', '')
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_key', '')
     secret_value = \
-        ctx.node.properties.get('resource_config', {}).get('secret_value', {})
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_value', {})
     create_secret = \
-        ctx.node.properties.get('resource_config', {}).get('create_secret', False)
+        ctx.node.properties.get('resource_config', {}).get(
+            'create_secret', False)
     secret_name = \
-        ctx.node.properties.get('resource_config', {}).get('secret_name', secret_key)
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_name', secret_key)
     mount_point = \
-        ctx.node.properties.get('resource_config', {}).get('mount_point', 'secret')
+        ctx.node.properties.get('resource_config', {}).get(
+            'mount_point', 'secret')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
@@ -155,13 +166,17 @@ def update_secret(ctx, vault_client, **kwargs):
 @with_vault
 def delete_secret(ctx, vault_client, **kwargs):
     secret_key = \
-        ctx.node.properties.get('resource_config', {}).get('secret_key', '')
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_key', '')
     create_secret = \
-        ctx.node.properties.get('resource_config', {}).get('create_secret', False)
+        ctx.node.properties.get('resource_config', {}).get(
+            'create_secret', False)
     secret_name = \
-        ctx.node.properties.get('resource_config', {}).get('secret_name', secret_key)
+        ctx.node.properties.get('resource_config', {}).get(
+            'secret_name', secret_key)
     mount_point = \
-        ctx.node.properties.get('resource_config', {}).get('mount_point', 'secret')
+        ctx.node.properties.get('resource_config', {}).get(
+            'mount_point', 'secret')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
