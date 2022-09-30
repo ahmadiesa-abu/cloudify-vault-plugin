@@ -57,7 +57,7 @@ data_types:
 
 node_types:
 
-  cloudify.nodes.vault.secret:
+  cloudify.nodes.vault.Secret:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *client_config
@@ -85,7 +85,7 @@ node_types:
         delete:
           implementation: vault.cloudify_vault.tasks.delete_secret
 
-  cloudify.nodes.vault.bunch_secrets:
+  cloudify.nodes.vault.Bunch_secrets:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *client_config
@@ -118,14 +118,37 @@ workflows:
   execute_with_secrets:
     mapping: vault.cloudify_vault.workflows.execute_with_secrets
     parameters:
-      <<: *client_config
-      workflow_name:
+      workflow_id:
         type: string
         description: |
-          Name of the workflow to be executed.
-      secret_keys:
+          ID of the workflow to be executed on target deployment.
+      target_deployment_id:
+        type: string
+        description: |
+          ID of the target deployment for the workflow to be executed on.
+      secret_list:
+        type: list
+        description: |
+          List of secrets to obtain the value from the Vault and provide
+          the deployment with. They should already exist in Vault.
+          Each secret object should contain the following keys:
+          secret_key and mount_point.
+      node_ids:
         type: list
         default: []
         description: |
-          List of secret keys to obtain the value from the Vault and
-          provide the deployment with.
+          List of node ID's that the workflow should be run on.
+      node_instance_ids:
+        type: list
+        default: []
+        description: |
+          List of node instance ID's that the workflow should be run on.
+
+  remove_local_secrets:
+    mapping: vault.cloudify_vault.workflows.remove_local_secrets
+    parameters:
+      secret_list:
+        type: list
+        default: []
+        description: |
+          List of secret names to be removed from local Secret Store.

@@ -21,13 +21,24 @@ dsl_definitions:
 
 node_templates:
   my_secret:
-    type: cloudify.nodes.vault.secret
+    type: cloudify.nodes.vault.Secret
     properties:
       client_config: *vault_config
       resource_config:
         secret_key: {get_input: secret_key}
         secret_value: {get_input: secret_value}
 
+  my_secrets:
+    type: cloudify.nodes.vault.Bunch_secrets
+    properties:
+      client_config: *vault_config
+      use_external_resource: true
+      resource_config:
+        - secret_key: hello2
+          create_secret: true
+        - secret_key: hello3
+          create_secret: true
+          secret_name: hello3_secret
 ```
 
 ## Tests
