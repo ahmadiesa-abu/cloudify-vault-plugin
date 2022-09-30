@@ -37,8 +37,7 @@ data_types:
       create_secret:
         description: >
           A condition whether to store the secret value in Cloudify
-          secrets in case of use_external_resource is used to fetch the
-          secret from Vault.
+          Manager secrets.
         type: boolean
         default: false
       secret_name:
@@ -104,14 +103,29 @@ node_types:
         required: false
       resource_config:
         type: list
-        description: List of Vault Secret type objects
+        description: List of vault.Secret type objects
         required: true
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
           implementation: vault.cloudify_vault.tasks.bunch_create_secrets
-        # update:
-        #   implementation: vault.cloudify_vault.tasks.bunch_update_secrets
+        update:
+          implementation: vault.cloudify_vault.tasks.bunch_update_secrets
         delete:
           implementation: vault.cloudify_vault.tasks.bunch_delete_secrets
 
+workflows:
+  execute_with_secrets:
+    mapping: vault.cloudify_vault.workflows.execute_with_secrets
+    parameters:
+      <<: *client_config
+      workflow_name:
+        type: string
+        description: |
+          Name of the workflow to be executed.
+      secret_keys:
+        type: list
+        default: []
+        description: |
+          List of secret keys to obtain the value from the Vault and
+          provide the deployment with.
