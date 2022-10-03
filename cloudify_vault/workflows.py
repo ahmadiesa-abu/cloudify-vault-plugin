@@ -1,4 +1,10 @@
+from cloudify import constants
 from cloudify.manager import get_rest_client
+from cloudify.utils import get_manager_rest_service_host,
+                           get_manager_rest_service_port,
+                           get_tenant_name,
+                           get_local_rest_certificate
+from cloudify_rest_client import CloudifyClient
 import hvac
 import json
 import uuid
@@ -44,13 +50,23 @@ def execute_with_secrets(ctx,
                          node_instance_ids,
                          **kwargs):
     rest_client = get_rest_client()
+    secrets_rest_client = CloudifyClient(
+        headers={ 'X-BYPASS-MAINTENANCE': True },
+        host=utils.get_manager_rest_service_host(),
+        port=utils.get_manager_rest_service_port(),
+        tenant=utils.get_tenant_name(),
+        protocol=constants.SECURED_PROTOCOL,
+        cert=utils.get_local_rest_certificate(),
+        username=rest_client.secrets.get('secrets_user_name').get('value')
+        password=rest_client.secrets.get('secrets_user_password').get('value')
+    )
     vault_client = _configure_vault_client(rest_client)
     secrets_suffix = str(uuid.uuid4())
 
     # Schedule the removal of secrets
     secret_names = [secret.get('secret_key', '') + '-' + secrets_suffix
                     for secret in secret_list]
-    rest_client.executions.start(
+    secrets_rest_client.executions.start(
         deployment_id=ctx.deployment.id,
         workflow_id='remove_local_secrets',
         queue=True,
@@ -61,7 +77,7 @@ def execute_with_secrets(ctx,
 
     # Obtain and save secrets
     _read_and_save_secrets(ctx,
-                           rest_client,
+                           secrets_rest_client,
                            vault_client,
                            secret_list,
                            secrets_suffix)
