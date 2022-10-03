@@ -72,6 +72,21 @@ node_types:
         description: >
           If using use_external_resource and secret not found, create it.
         required: false
+      use_api_client_token:
+        type: boolean
+        description: >
+          Auto-generate and use a new API Client token with adequate
+          policies for managing Vault resources. If set to false, plugin
+          will use the Master Token for all operations.
+        required: false
+        default: false
+      client_token_policies:
+        type: list
+        description: >
+          Valid only when `use_api_client_token` is enabled. A list of
+          policies to be granted for new API Client token.
+        required: false
+        default: [secret]
       resource_config:
         type: cloudify.types.vault.Secret
         description: Vault Secret type
@@ -101,6 +116,21 @@ node_types:
           If using use_external_resource and secrets not found, create
           them.
         required: false
+      use_api_client_token:
+        type: boolean
+        description: >
+          Auto-generate and use a new API Client token with adequate
+          policies for managing Vault resources. If set to false, plugin
+          will use the Master Token for all operations.
+        required: false
+        default: false
+      client_token_policies:
+        type: list
+        description: >
+          Valid only when `use_api_client_token` is enabled. A list of
+          policies to be granted for new API Client token.
+        required: false
+        default: [secret]
       resource_config:
         type: list
         description: List of vault.Secret type objects
@@ -113,6 +143,7 @@ node_types:
           implementation: vault.cloudify_vault.tasks.bunch_update_secrets
         delete:
           implementation: vault.cloudify_vault.tasks.bunch_delete_secrets
+
 
 workflows:
   execute_with_secrets:

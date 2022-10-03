@@ -24,8 +24,27 @@ def with_vault(func):
     def f(*args, **kwargs):
         ctx = kwargs['ctx']
         url = ctx.node.properties['client_config']['url']
-        token = ctx.node.properties['client_config']['token']
-        kwargs['vault_client'] = hvac.Client(url=url, token=token)
+        root_token = ctx.node.properties['client_config']['token']
+        use_api_client_token = ctx.node.properties.get('use_api_client_token',
+                                                       False)
+
+        if ctx.node.properties.get('use_api_client_token', False):
+            temp_client = hvac.Client(url=url, token=root_token)
+            token_policies = ctx.node.properties.get(
+                'client_token_policies',
+                ['secret']
+            )
+            create_token_response = temp_client.auth.token.create(
+                policies=token_policies,
+                ttl='90s',
+                renewable=False
+            )
+            del temp_client
+            client_token = create_token_response['auth']['client_token']
+            kwargs['vault_client'] = hvac.Client(url=url, token=client_token)
+        else:
+            kwargs['vault_client'] = hvac.Client(url=url, token=root_token)
+
         return func(*args, **kwargs)
     return f
 
