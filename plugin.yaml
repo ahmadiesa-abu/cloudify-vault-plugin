@@ -12,6 +12,13 @@ dsl_definitions:
       description: Your Vault client configuration.
       required: false
 
+  executor_user_config: &executor_user_config
+    executor_user_config:
+      type: cloudify.types.vault.ExecutorConfig
+      description: >
+        Cloudify Manager User that should execute the workflows.
+      required: false
+
 data_types:
 
   cloudify.types.vault.ClientConfig:
@@ -39,6 +46,24 @@ data_types:
           policies to be granted for new API Client token.
         required: false
         default: [secret]
+
+  cloudify.types.vault.ExecutorConfig:
+    properties:
+      username:
+        description: Cloudify Manager User name.
+        type: string
+        default: ''
+        required: false
+      password:
+        description: Cloudify Manager User password.
+        type: string
+        default: ''
+        required: false
+      # token:
+      #   description: Cloudify Manager User token.
+      #   type: string
+      #   default: ''
+      #   required: false
 
   cloudify.types.vault.Secret:
     properties:
@@ -76,6 +101,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *client_config
+      <<: *executor_user_config
       use_external_resource:
         type: boolean
         description: >
@@ -104,6 +130,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *client_config
+      <<: *executor_user_config
       use_external_resource:
         type: boolean
         description: >

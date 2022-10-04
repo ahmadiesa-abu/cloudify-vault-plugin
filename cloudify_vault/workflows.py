@@ -2,6 +2,7 @@ from cloudify import constants
 from cloudify import utils
 from cloudify.manager import get_rest_client
 from cloudify_rest_client import CloudifyClient
+from tasks import configure_rest_client
 import hvac
 import json
 import os
@@ -49,33 +50,12 @@ def execute_with_secrets(ctx,
                          **kwargs):
     # Prepare the environment
     rest_client = get_rest_client()
-    host = utils.get_manager_rest_service_host()
-    if isinstance(host, list):
-        host = str(host[0])
-    port = utils.get_manager_rest_service_port()
-    protocol = constants.SECURED_PROTOCOL
-    headers = {}
-    if utils.get_is_bypass_maintenance():
-        headers['X-BYPASS-MAINTENANCE'] = 'True'
-    cert = utils.get_local_rest_certificate()
-    username = rest_client.secrets.get('secrets_user_name').get('value')
-    password = rest_client.secrets.get('secrets_user_password').get('value')
-    tenant = utils.get_tenant_name()
-    kerberos_env = utils.get_kerberos_indication(
-        os.environ.get(constants.KERBEROS_ENV_KEY)
-    )
+    
+    username = rest_client.secrets.get('secrets_user_name').get('value', '')
+    password = rest_client.secrets.get('secrets_user_password').get('value', '')
+    secrets_rest_client = configure_rest_client(username=username,
+                                                password=password)
 
-    secrets_rest_client = CloudifyClient(
-        host=host,
-        port=port,
-        protocol=protocol,
-        headers=headers,
-        cert=cert,
-        username=username,
-        password=password,
-        tenant=tenant,
-        kerberos_env=kerberos_env,
-    )
     vault_client = _configure_vault_client(rest_client)
     secrets_suffix = str(uuid.uuid4())
 

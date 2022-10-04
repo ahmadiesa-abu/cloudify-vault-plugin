@@ -12,11 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
-import hvac
+from cloudify import constants
+from cloudify import utils
 from cloudify.decorators import operation
 from cloudify.manager import get_rest_client
+from cloudify_rest_client import CloudifyClient
 from functools import wraps
+import hvac
+import json
 
 
 def with_vault(func):
@@ -51,8 +54,50 @@ def with_vault(func):
     return f
 
 
-def _create_secret(ctx, vault_client, secret_key, secret_value, create_secret,
-                   secret_name, mount_point, use_external_resource):
+def configure_rest_client(
+    host=utils.get_manager_rest_service_host(),
+    port=utils.get_manager_rest_service_port(),
+    protocol=constants.SECURED_PROTOCOL,
+    headers={},
+    cert=utils.get_local_rest_certificate(),
+    username='',
+    password='',
+    tenant=utils.get_tenant_name(),
+    kerberos_env=utils.get_kerberos_indication(
+        os.environ.get(constants.KERBEROS_ENV_KEY)
+    ),
+):
+    if not username and not password:
+        return get_rest_client()
+    else:
+        if isinstance(host, list):
+            host = str(host[0])
+        if utils.get_is_bypass_maintenance():
+            headers['X-BYPASS-MAINTENANCE'] = 'True'
+        rest_client = CloudifyClient(
+            host=host,
+            port=port,
+            protocol=protocol,
+            headers=headers,
+            cert=cert,
+            username=username,
+            password=password,
+            tenant=tenant,
+            kerberos_env=kerberos_env,
+        )
+        return rest_client
+
+
+def _create_secret(ctx,
+                   vault_client,
+                   secret_key,
+                   secret_value,
+                   create_secret,
+                   secret_name,
+                   mount_point,
+                   use_external_resource,
+                   executor_username='',
+                   executor_password=''):
     if use_external_resource:
         ctx.logger.info('Reading from Vault at key: {}'.format(secret_key))
         read_secret_result = vault_client.secrets.kv.v1.read_secret(
@@ -72,7 +117,8 @@ def _create_secret(ctx, vault_client, secret_key, secret_value, create_secret,
             create_result.status_code
 
     if create_secret:
-        rest_client = get_rest_client()
+        rest_client = configure_rest_client(username=executor_username,
+                                            password=executor_password)
         secret_name = secret_name or secret_key
         ctx.logger.info('Creating local secret: {}'.format(secret_name))
         rest_client.secrets.create(secret_name,
@@ -82,8 +128,16 @@ def _create_secret(ctx, vault_client, secret_key, secret_value, create_secret,
             {'secret_name': secret_name}
 
 
-def _update_secret(ctx, vault_client, secret_key, secret_value, create_secret,
-                   secret_name, mount_point, use_external_resource):
+def _update_secret(ctx,
+                   vault_client,
+                   secret_key,
+                   secret_value,
+                   create_secret,
+                   secret_name,
+                   mount_point,
+                   use_external_resource,
+                   executor_username='',
+                   executor_password=''):
     if use_external_resource:
         ctx.logger.info('Not updating external resource')
     else:
@@ -96,7 +150,8 @@ def _update_secret(ctx, vault_client, secret_key, secret_value, create_secret,
         ctx.instance.runtime_properties['create_result'] = update_result
 
     if create_secret:
-        rest_client = get_rest_client()
+        rest_client = configure_rest_client(username=executor_username,
+                                            password=executor_password)
         secret_name = secret_name or secret_key
         ctx.logger.info('Updating local secret: {}'.format(secret_name))
         rest_client.secrets.create(secret_name,
@@ -104,8 +159,15 @@ def _update_secret(ctx, vault_client, secret_key, secret_value, create_secret,
                                    update_if_exists=True)
 
 
-def _delete_secret(ctx, vault_client, secret_key, create_secret,
-                   secret_name, mount_point, use_external_resource):
+def _delete_secret(ctx,
+                   vault_client,
+                   secret_key,
+                   create_secret,
+                   secret_name,
+                   mount_point,
+                   use_external_resource,
+                   executor_username='',
+                   executor_password=''):
     if use_external_resource:
         ctx.logger.info('Not deleting external resource')
     else:
@@ -115,7 +177,8 @@ def _delete_secret(ctx, vault_client, secret_key, create_secret,
             mount_point=mount_point,
         )
     if create_secret:
-        rest_client = get_rest_client()
+        rest_client = configure_rest_client(username=executor_username,
+                                            password=executor_password)
         secret_name = secret_name or secret_key
         ctx.logger.info('Deleting local secret: {}'.format(secret_name))
         rest_client.secrets.delete(secret_name)
@@ -139,6 +202,12 @@ def create_secret(ctx, vault_client, **kwargs):
     mount_point = \
         ctx.node.properties.get('resource_config', {}).get(
             'mount_point', 'secret')
+    executor_username = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'username', '')
+    executor_password = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'password', '')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
@@ -149,7 +218,9 @@ def create_secret(ctx, vault_client, **kwargs):
                    create_secret,
                    secret_name,
                    mount_point,
-                   use_external_resource)
+                   use_external_resource,
+                   executor_username,
+                   executor_password)
 
 
 @operation
@@ -170,6 +241,12 @@ def update_secret(ctx, vault_client, **kwargs):
     mount_point = \
         ctx.node.properties.get('resource_config', {}).get(
             'mount_point', 'secret')
+    executor_username = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'username', '')
+    executor_password = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'password', '')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
@@ -180,7 +257,9 @@ def update_secret(ctx, vault_client, **kwargs):
                    create_secret,
                    secret_name,
                    mount_point,
-                   use_external_resource)
+                   use_external_resource,
+                   executor_username,
+                   executor_password)
 
 
 @operation
@@ -198,6 +277,12 @@ def delete_secret(ctx, vault_client, **kwargs):
     mount_point = \
         ctx.node.properties.get('resource_config', {}).get(
             'mount_point', 'secret')
+    executor_username = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'username', '')
+    executor_password = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'password', '')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
 
@@ -207,7 +292,9 @@ def delete_secret(ctx, vault_client, **kwargs):
                    create_secret,
                    secret_name,
                    mount_point,
-                   use_external_resource)
+                   use_external_resource,
+                   executor_username,
+                   executor_password)
 
 
 @operation
@@ -215,8 +302,15 @@ def delete_secret(ctx, vault_client, **kwargs):
 def bunch_create_secrets(ctx, vault_client, **kwargs):
     secret_list = \
         ctx.node.properties.get('resource_config', [])
+    executor_username = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'username', '')
+    executor_password = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'password', '')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
+
     for secret in secret_list:
         secret_key = secret.get('secret_key', '')
         secret_value = secret.get('secret_value', '')
@@ -231,7 +325,9 @@ def bunch_create_secrets(ctx, vault_client, **kwargs):
                        create_secret,
                        secret_name,
                        mount_point,
-                       use_external_resource)
+                       use_external_resource,
+                       executor_username,
+                       executor_password)
 
 
 @operation
@@ -239,8 +335,15 @@ def bunch_create_secrets(ctx, vault_client, **kwargs):
 def bunch_update_secrets(ctx, vault_client, **kwargs):
     secret_list = \
         ctx.node.properties.get('resource_config', [])
+    executor_username = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'username', '')
+    executor_password = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'password', '')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
+
     for secret in secret_list:
         secret_key = secret.get('secret_key', '')
         secret_value = secret.get('secret_value', '')
@@ -255,7 +358,9 @@ def bunch_update_secrets(ctx, vault_client, **kwargs):
                        create_secret,
                        secret_name,
                        mount_point,
-                       use_external_resource)
+                       use_external_resource,
+                       executor_username,
+                       executor_password)
 
 
 @operation
@@ -263,8 +368,15 @@ def bunch_update_secrets(ctx, vault_client, **kwargs):
 def bunch_delete_secrets(ctx, vault_client, **kwargs):
     secret_list = \
         ctx.node.properties.get('resource_config', [])
+    executor_username = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'username', '')
+    executor_password = \
+        ctx.node.properties.get('executor_user_config', {}).get(
+            'password', '')
     use_external_resource = \
         ctx.node.properties.get('use_external_resource', False)
+
     for secret in secret_list:
         secret_key = secret.get('secret_key', '')
         create_secret = secret.get('create_secret', False)
@@ -277,4 +389,6 @@ def bunch_delete_secrets(ctx, vault_client, **kwargs):
                        create_secret,
                        secret_name,
                        mount_point,
-                       use_external_resource)
+                       use_external_resource,
+                       executor_username,
+                       executor_password)
