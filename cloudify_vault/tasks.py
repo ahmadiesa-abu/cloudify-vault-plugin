@@ -25,10 +25,12 @@ def with_vault(func):
         ctx = kwargs['ctx']
         url = ctx.node.properties['client_config']['url']
         root_token = ctx.node.properties['client_config']['token']
-        use_api_client_token = ctx.node.properties.get('use_api_client_token',
-                                                       False)
+        use_api_client_token = ctx.node.properties['client_config'].get(
+                'use_api_client_token',
+                False
+            )
 
-        if ctx.node.properties.get('use_api_client_token', False):
+        if use_api_client_token:
             temp_client = hvac.Client(url=url, token=root_token)
             token_policies = ctx.node.properties.get(
                 'client_token_policies',
