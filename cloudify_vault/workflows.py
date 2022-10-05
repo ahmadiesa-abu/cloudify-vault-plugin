@@ -2,7 +2,7 @@ from cloudify import constants
 from cloudify import utils
 from cloudify.manager import get_rest_client
 from cloudify_rest_client import CloudifyClient
-from tasks import configure_rest_client
+from cloudify_vault.tasks import configure_rest_client
 import hvac
 import json
 import os
@@ -38,7 +38,9 @@ def _read_and_save_secrets(ctx,
         ctx.logger.info('Creating local secret: {}'.format(secret_name))
         rest_client.secrets.create(secret_name,
                                    secret_value,
-                                   update_if_exists=True)
+                                   update_if_exists=True,
+                                   visibility='tenant',
+                                   is_hidden_value=True)
 
 
 def execute_with_secrets(ctx,
@@ -50,10 +52,11 @@ def execute_with_secrets(ctx,
                          **kwargs):
     # Prepare the environment
     rest_client = get_rest_client()
-    
+
     username = rest_client.secrets.get('secrets_user_name').get('value', '')
     password = rest_client.secrets.get('secrets_user_password').get('value', '')
-    secrets_rest_client = configure_rest_client(username=username,
+    secrets_rest_client = configure_rest_client(ctx,
+                                                username=username,
                                                 password=password)
 
     vault_client = _configure_vault_client(rest_client)

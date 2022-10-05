@@ -2,7 +2,7 @@ plugins:
   vault:
     executor: central_deployment_agent
     package_name: 'cloudify-vault-plugin'
-    package_version: '1.0.1'
+    package_version: '1.0.2'
 
 dsl_definitions:
 

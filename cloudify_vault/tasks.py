@@ -20,6 +20,7 @@ from cloudify_rest_client import CloudifyClient
 from functools import wraps
 import hvac
 import json
+import os
 
 
 def with_vault(func):
@@ -55,6 +56,7 @@ def with_vault(func):
 
 
 def configure_rest_client(
+    ctx,
     host=utils.get_manager_rest_service_host(),
     port=utils.get_manager_rest_service_port(),
     protocol=constants.SECURED_PROTOCOL,
@@ -62,7 +64,7 @@ def configure_rest_client(
     cert=utils.get_local_rest_certificate(),
     username='',
     password='',
-    tenant=utils.get_tenant_name(),
+    tenant='',
     kerberos_env=utils.get_kerberos_indication(
         os.environ.get(constants.KERBEROS_ENV_KEY)
     ),
@@ -82,7 +84,7 @@ def configure_rest_client(
             cert=cert,
             username=username,
             password=password,
-            tenant=tenant,
+            tenant=tenant or utils.get_tenant_name(),
             kerberos_env=kerberos_env,
         )
         return rest_client
@@ -117,13 +119,16 @@ def _create_secret(ctx,
             create_result.status_code
 
     if create_secret:
-        rest_client = configure_rest_client(username=executor_username,
+        rest_client = configure_rest_client(ctx=ctx,
+                                            username=executor_username,
                                             password=executor_password)
         secret_name = secret_name or secret_key
         ctx.logger.info('Creating local secret: {}'.format(secret_name))
         rest_client.secrets.create(secret_name,
                                    secret_value,
-                                   update_if_exists=True)
+                                   update_if_exists=True,
+                                   visibility='tenant',
+                                   is_hidden_value=True)
         ctx.instance.runtime_properties[secret_key] = \
             {'secret_name': secret_name}
 
@@ -150,13 +155,16 @@ def _update_secret(ctx,
         ctx.instance.runtime_properties['create_result'] = update_result
 
     if create_secret:
-        rest_client = configure_rest_client(username=executor_username,
+        rest_client = configure_rest_client(ctx=ctx,
+                                            username=executor_username,
                                             password=executor_password)
         secret_name = secret_name or secret_key
         ctx.logger.info('Updating local secret: {}'.format(secret_name))
         rest_client.secrets.create(secret_name,
                                    secret_value,
-                                   update_if_exists=True)
+                                   update_if_exists=True,
+                                   visibility='tenant',
+                                   is_hidden_value=True)
 
 
 def _delete_secret(ctx,
@@ -177,7 +185,8 @@ def _delete_secret(ctx,
             mount_point=mount_point,
         )
     if create_secret:
-        rest_client = configure_rest_client(username=executor_username,
+        rest_client = configure_rest_client(ctx=ctx,
+                                            username=executor_username,
                                             password=executor_password)
         secret_name = secret_name or secret_key
         ctx.logger.info('Deleting local secret: {}'.format(secret_name))
