@@ -1,23 +1,19 @@
+########
+# Copyright (c) 2014-2022 GigaSpaces Technologies Ltd. All rights reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from cloudify.exceptions import NonRecoverableError
 from cloudify.manager import get_rest_client
-
-
-def _get_secret_names(ctx, node_ids=None, node_instance_ids=None):
-    secret_names = []
-    if node_instance_ids:
-        for instance in ctx.node_instances:
-            if instance.id in node_instance_ids:
-                secret_names.extend(
-                    list(instance.runtime_properties.get('local_secrets',
-                                                         {}).values()))
-    elif node_ids:
-        for node in ctx.nodes:
-            if node.id in node_ids:
-                for instance in node.instances:
-                    secret_names.extend(
-                        list(instance.runtime_properties.get('local_secrets',
-                                                             {}).values()))
-    return secret_names
 
 
 def execute_with_secrets(ctx,
@@ -29,8 +25,6 @@ def execute_with_secrets(ctx,
                          secrets_node_instance_ids=None,
                          **kwargs):
     # Prepare the environment
-    rest_client = get_rest_client()
-
     parameters = {}
     if secrets_node_ids and secrets_node_instance_ids:
         raise NonRecoverableError(
@@ -53,6 +47,7 @@ def execute_with_secrets(ctx,
     # Schedule the removal of secrets
     delete_parameters = parameters
     delete_parameters['operation'] = 'cloudify.interfaces.vault.delete'
+    rest_client = get_rest_client()
     rest_client.executions.start(
         deployment_id=ctx.deployment.id,
         workflow_id='execute_operation',
@@ -80,12 +75,6 @@ def execute_with_secrets(ctx,
 
 
     # Execute target workflow on deployment
-    if not workflow_params.get('secret_names', None):
-        workflow_params['secret_names'] = _get_secret_names(
-            ctx,
-            secrets_node_ids,
-            secrets_node_instance_ids,
-        )
     if workflow_node_ids and workflow_node_instance_ids:
         raise NonRecoverableError(
             'Parameters \'workflow_node_ids\' and '
