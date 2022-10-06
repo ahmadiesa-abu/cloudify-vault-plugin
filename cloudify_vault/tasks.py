@@ -129,8 +129,12 @@ def _create_secret(ctx,
                                    update_if_exists=True,
                                    visibility='tenant',
                                    is_hidden_value=True)
-        ctx.instance.runtime_properties[secret_key] = \
+        if not ctx.instance.runtime_properties.get('local_secrets', None):
+            ctx.instance.runtime_properties['local_secrets'] = {}
+        ctx.instance.runtime_properties['local_secrets'][secret_key] = \
             {'secret_name': secret_name}
+        ctx.instance.runtime_properties['secrets_suffix'] = \
+            '_' + ctx.deployment.id
 
 
 def _update_secret(ctx,
@@ -165,6 +169,12 @@ def _update_secret(ctx,
                                    update_if_exists=True,
                                    visibility='tenant',
                                    is_hidden_value=True)
+        if not ctx.instance.runtime_properties.get('local_secrets', None):
+            ctx.instance.runtime_properties['local_secrets'] = {}
+        ctx.instance.runtime_properties['local_secrets'][secret_key] = \
+            {'secret_name': secret_name}
+        ctx.instance.runtime_properties['secrets_suffix'] = \
+            '_' + ctx.deployment.id
 
 
 def _delete_secret(ctx,
@@ -191,6 +201,7 @@ def _delete_secret(ctx,
         secret_name = secret_name or secret_key
         ctx.logger.info('Deleting local secret: {}'.format(secret_name))
         rest_client.secrets.delete(secret_name)
+        del ctx.instance.runtime_properties['local_secrets'][secret_key]
 
 
 @operation
@@ -201,7 +212,7 @@ def create_secret(ctx, vault_client, **kwargs):
             'secret_key', '')
     secret_value = \
         ctx.node.properties.get('resource_config', {}).get(
-            'secret_value', '')
+            'secret_value', {})
     create_secret = \
         ctx.node.properties.get('resource_config', {}).get(
             'create_secret', False)
